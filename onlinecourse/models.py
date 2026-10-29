@@ -1,13 +1,8 @@
-import sys
-from django.utils.timezone import now
-try:
-    from django.db import models
-except Exception:
-    print("There was an error loading django modules. Do you have django installed?")
-    sys.exit()
+"""Courses, enrollment and assessment records."""
 
+from django.utils.timezone import now
+from django.db import models
 from django.conf import settings
-import uuid
 
 
 # Instructor model
@@ -75,6 +70,12 @@ class Lesson(models.Model):
     course = models.ForeignKey(Course, on_delete=models.CASCADE)
     content = models.TextField()
 
+    class Meta:
+        ordering = ["order", "pk"]
+
+    def __str__(self):
+        return self.title
+
 
 # Enrollment model
 # <HINT> Once a user enrolled a class, an enrollment entry should be created between the user and course
@@ -94,10 +95,51 @@ class Enrollment(models.Model):
     mode = models.CharField(max_length=5, choices=COURSE_MODES, default=AUDIT)
     rating = models.FloatField(default=5.0)
 
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["user", "course"], name="unique_course_enrollment")
+        ]
 
-# One enrollment could have multiple submission
-# One submission could have multiple choices
-# One choice could belong to multiple submissions
-#class Submission(models.Model):
-#    enrollment = models.ForeignKey(Enrollment, on_delete=models.CASCADE)
-#    choices = models.ManyToManyField(Choice)
+    def __str__(self):
+        return f"{self.user.username}: {self.course.name}"
+
+
+class Question(models.Model):
+    course = models.ForeignKey(Course, on_delete=models.CASCADE)
+    question_text = models.CharField(max_length=1000)
+    grade = models.PositiveIntegerField(default=1)
+
+    class Meta:
+        ordering = ["pk"]
+        constraints = [models.CheckConstraint(condition=models.Q(grade__gt=0), name="positive_question_grade")]
+
+    def is_get_score(self, selected_ids):
+        """Award credit only for an exact, nonempty set of correct choices."""
+        correct_ids = set(self.choice_set.filter(is_correct=True).values_list("pk", flat=True))
+        question_ids = set(self.choice_set.values_list("pk", flat=True))
+        selected = set(selected_ids) & question_ids
+        return bool(correct_ids) and selected == correct_ids
+
+    def __str__(self):
+        return self.question_text
+
+
+class Choice(models.Model):
+    question = models.ForeignKey(Question, on_delete=models.CASCADE)
+    choice_text = models.CharField(max_length=1000)
+    is_correct = models.BooleanField(default=False)
+
+    class Meta:
+        ordering = ["pk"]
+
+    def __str__(self):
+        return self.choice_text
+
+
+class Submission(models.Model):
+    enrollment = models.ForeignKey(Enrollment, on_delete=models.CASCADE)
+    choices = models.ManyToManyField(Choice, blank=True)
+    submitted_at = models.DateTimeField(default=now)
+
+    def __str__(self):
+        return f"Submission {self.pk}: {self.enrollment}"

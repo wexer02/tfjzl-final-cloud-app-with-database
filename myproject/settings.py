@@ -11,6 +11,8 @@ https://docs.djangoproject.com/en/3.0/ref/settings/
 """
 
 import os
+from pathlib import Path
+from django.core.management.utils import get_random_secret_key
 
 
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
@@ -21,13 +23,17 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 # See https://docs.djangoproject.com/en/3.0/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'aay0j_9b&ky3a7(8m8il+-1ud(scw12@w5!+5-=gsk6ynzi0ls'
+secret_file = Path(BASE_DIR) / '.django-secret-key'
+if not secret_file.exists():
+    secret_file.write_text(get_random_secret_key(), encoding='utf-8')
+SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY') or secret_file.read_text(encoding='utf-8').strip()
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.environ.get('DJANGO_DEBUG', '1') == '1'
 
 # <HINT> add your cloud host here
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['127.0.0.1', 'localhost', '[::1]']
+LOGIN_URL = 'onlinecourse:login'
 
 CSRF_TRUSTED_ORIGINS = ['https://*.cognitiveclass.ai']
 
@@ -122,7 +128,8 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/3.0/howto/static-files/
 
 STATIC_URL = '/static/'
-STATIC_ROOT = os.path.join(BASE_DIR, 'static')
-MEDIA_ROOT = os.path.join(STATIC_ROOT, 'media')
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+STATICFILES_DIRS = [os.path.join(BASE_DIR, 'static', 'onlinecourse')]
+MEDIA_ROOT = os.path.join(BASE_DIR, 'static', 'media')
 MEDIA_URL = '/media/'
 

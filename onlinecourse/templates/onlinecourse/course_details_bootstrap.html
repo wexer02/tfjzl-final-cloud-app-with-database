@@ -1,0 +1,47 @@
+{% extends 'onlinecourse/base.html' %}
+{% block title %}{{ course.name }} | Online Course{% endblock %}
+{% block content %}
+    <h1 class="mb-2">{{ course.name }}</h1>
+    <p class="text-muted mb-4">{{ course.description }}</p>
+    <h2 class="h4">Course lessons</h2>
+    {% for lesson in course.lesson_set.all %}
+        <section class="card mb-3">
+            <div class="card-header"><h3 class="h5 mb-0">Lesson {{ lesson.order|add:1 }}: {{ lesson.title }}</h3></div>
+            <div class="card-body">{{ lesson.content|linebreaks }}</div>
+        </section>
+    {% empty %}
+        <p>No lessons have been published yet.</p>
+    {% endfor %}
+    {% if user.is_authenticated and is_enrolled %}
+        <section class="card mt-4">
+            <div class="card-header"><h2 class="h4 mb-0">Course exam</h2></div>
+            <div class="card-body">
+                <p>Select all correct answers for each question. The passing score is 80%.</p>
+                <form method="post" action="{% url 'onlinecourse:submit' course.id %}">
+                    {% csrf_token %}
+                    {% for question in course.question_set.all %}
+                        <fieldset class="border rounded p-3 mb-3">
+                            <legend class="h5 w-auto px-2">{{ forloop.counter }}. {{ question.question_text }}</legend>
+                            <p class="small text-muted">{{ question.grade }} point{{ question.grade|pluralize }}</p>
+                            {% for choice in question.choice_set.all %}
+                                <div class="form-check mb-2">
+                                    <input class="form-check-input" type="checkbox" id="choice-{{ choice.id }}" name="choice_{{ question.id }}" value="{{ choice.id }}">
+                                    <label class="form-check-label" for="choice-{{ choice.id }}">{{ choice.choice_text }}</label>
+                                </div>
+                            {% endfor %}
+                        </fieldset>
+                    {% empty %}
+                        <p>This course has no exam questions yet.</p>
+                    {% endfor %}
+                    {% if course.question_set.exists %}<button class="btn btn-primary" type="submit">Submit exam</button>{% endif %}
+                </form>
+            </div>
+        </section>
+    {% elif user.is_authenticated %}
+        <form method="post" action="{% url 'onlinecourse:enroll' course.id %}">
+            {% csrf_token %}<button class="btn btn-primary" type="submit">Enroll to take the exam</button>
+        </form>
+    {% else %}
+        <a class="btn btn-primary" href="{% url 'onlinecourse:login' %}">Log in to enroll</a>
+    {% endif %}
+{% endblock %}
